@@ -1,5 +1,8 @@
 FROM python:3.8-slim
 
+# Install git (and other tools if needed)
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+
 # Set working directory
 WORKDIR /app
 
