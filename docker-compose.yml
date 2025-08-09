@@ -1,0 +1,73 @@
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: Kingdomdb
+      MYSQL_ROOT_PASSWORD: Marty1203!
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  base:
+    build:
+      context: ./services/base
+    image: bibleversedockerized-base
+    # No ports or CMD needed
+
+  ollama-api:
+    build:
+      context: ./services/ollama
+    ports:
+      - "5003:5003"
+    restart: unless-stopped
+    depends_on:
+      - ollama
+    environment:
+      PINECONE_API_KEY: pcsk_6vVSon_Fy7EhEUgsmLngjHF5M29A4zJUDyBtijvvEc2uXfBaFbb4PA1Z1UpeX7EPzXmVKC
+      PINECONE_ENV: gcp-starter
+
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
+
+  whisper-api:
+    build:
+      context: ./services/whisper
+    depends_on:
+      - base
+    ports:
+      - "5004:5004"
+    restart: unless-stopped
+
+  stable-diffusion-api:
+    build:
+      context: ./services/stable-diffusion
+    depends_on:
+      - base
+    ports:
+      - "5002:5002"
+    restart: unless-stopped
+    volumes:
+      - ./services/stable-diffusion/generated:/app/generated
+
+  prisma-studio:
+    image: node:18
+    working_dir: /app
+    volumes:
+      - ./nuxt-app:/app
+    ports:
+      - "5555:5555"
+    command: sh -c "npm install && npx prisma studio"
+    depends_on:
+      - mysql
+
+volumes:
+  nuxt_node_modules:
+  mysql_data:
+  ollama_models:

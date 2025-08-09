@@ -1,0 +1,85 @@
+services:
+  nuxt:
+    build:
+      context: ./nuxt-app
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./nuxt-app:/app
+      - nuxt_node_modules:/app/node_modules
+      - ./.env:/app/.env  # Mount the .env file into the container
+    working_dir: /app
+    command: npm run dev
+    restart: unless-stopped
+    depends_on:
+      - mysql
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - GOOGLE_TRANSLATE_API_KEY=${GOOGLE_TRANSLATE_API_KEY}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_API_KEY_BIBLE_LOGIC=${OPENAI_API_KEY_BIBLE_LOGIC}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_S3_REGION=${AWS_S3_REGION}
+      - AWS_S3_BUCKET=${AWS_S3_BUCKET}
+      - NUXT_PUBLIC_AWS_REGION=${NUXT_PUBLIC_AWS_REGION}
+      - NUXT_PUBLIC_IVS_PLAYBACK_KEY_ARN=${NUXT_PUBLIC_IVS_PLAYBACK_KEY_ARN}
+
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: kingdom
+      MYSQL_ROOT_PASSWORD: Marty1203!
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  base:
+    build:
+      context: ./services/base
+    image: kingdomapidockerized-base
+    # No ports or CMD needed
+
+  ollama-api:
+    build:
+      context: ./services/ollama
+    ports:
+      - "5001:5001"
+    restart: unless-stopped
+
+  whisper-api:
+    build:
+      context: ./services/whisper
+    depends_on:
+      - base
+    ports:
+      - "5004:5004"
+    restart: unless-stopped
+
+  stable-diffusion-api:
+    build:
+      context: ./services/stable-diffusion
+    depends_on:
+      - base
+    ports:
+      - "5002:5002"
+    restart: unless-stopped
+
+  prisma-studio:
+    image: node:18
+    working_dir: /app
+    volumes:
+      - ./nuxt-app:/app
+    ports:
+      - "5555:5555"
+    command: sh -c "npm install && npx prisma studio"
+    depends_on:
+      - mysql
+
+volumes:
+  nuxt_node_modules:
+  mysql_data:

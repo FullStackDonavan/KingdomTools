@@ -1,0 +1,6 @@
+flask
+flask_cors
+requests
+openai
+ollama  # Ollama's Python package (if available)
+pinecone-client
