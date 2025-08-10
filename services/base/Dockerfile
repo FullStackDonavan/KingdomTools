@@ -1,7 +1,15 @@
 FROM python:3.8-slim
 
 # Install git (and other tools if needed)
-RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+# Install git and system dependencies needed for torch, ffmpeg-python, numpy
+RUN apt-get update && apt-get install -y \
+    git \
+    build-essential \
+    libffi-dev \
+    libssl-dev \
+    libsndfile1 \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
