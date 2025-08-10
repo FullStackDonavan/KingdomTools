@@ -1,27 +1,30 @@
 import os
-import openai
-from flask import Flask, request, jsonify
-from pinecone import Pinecone, ServerlessSpec
 import json
+import requests
+from flask import Flask, request, jsonify
+from pinecone import Pinecone
+import openai
 
 app = Flask(__name__)
 
-openai.api_key = os.getenv("k-proj-LL5FmVsY5kq3fAmFQqnbL_LanGq8sIQpAKz8Dn1uW0h6EeZ8YzJKXx7QNPIWBKafwD25hfYKMyT3BlbkFJTx8i0mbgh8DMxWgU5GCoYcfNH4aVppjZtK6fihmEQyapGVIAmHUdyVsa25_kfvONNcpIjK_wsA")
-pc = Pinecone(api_key=os.getenv("pcsk_6vVSon_Fy7EhEUgsmLngjHF5M29A4zJUDyBtijvvEc2uXfBaFbb4PA1Z1UpeX7EPzXmVKC"))
+# === Environment Variables ===
+openai.api_key = os.getenv("OPENAI_API_KEY")
+pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+ollama_url = "http://ollama:11434/api/generate"
+PORT = int(os.environ.get("PORT", 5003))
+
 index_name = "bible-verse-index"
 
-# Check if index already exists
-if index_name not in Pinecone.list_indexes():
-    Pinecone.create_index(
+# Create Pinecone index if not exists
+if index_name not in [idx["name"] for idx in pc.list_indexes()]:
+    pc.create_index(
         name=index_name,
-        dimension=1536,  # use your actual dimension
+        dimension=1536,
         metric="cosine"
     )
-else:
-    print(f"Index '{index_name}' already exists. Skipping creation.")
 index = pc.Index(name=index_name)
 
-
+# === Embedding helper ===
 def embed_text(text):
     if not text.strip():
         return None
@@ -35,7 +38,7 @@ def embed_text(text):
         print(f"OpenAI Embedding error: {e}")
         return None
 
-
+# === Routes ===
 @app.route("/api/embeddings", methods=["POST"])
 def embeddings():
     try:
@@ -43,7 +46,6 @@ def embeddings():
             bible = json.load(f)
 
         upserts = []
-
         for book in bible["books"]:
             for chapter in book["chapters"]:
                 for verse in chapter["verses"]:
@@ -78,5 +80,20 @@ def embeddings():
         print(f"Error: {e}")
         return jsonify({"error": str(e)}), 500
 
+
+@app.route("/api/generate", methods=["POST"])
+def generate():
+    """Proxy to Ollama container inside Docker network"""
+    try:
+        r = requests.post(ollama_url, json=request.get_json(), timeout=300)
+        return jsonify(r.json())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/ping", methods=["GET"])
+def ping():
+    return "pong", 200
+
+# === Run ===
 if __name__ == "__main__":
-    app.run(port=5003, debug=True)
+    app.run(host="0.0.0.0", port=PORT)
